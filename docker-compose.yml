@@ -48,5 +48,8 @@ services:
       - mariadb_data:/var/lib/mysql
     ports:
       - "3306:3306"  # Optionnel : accès depuis ton PC si besoin
+    volumes:
+     n8n_data:
+     mariadb_data:
 
 
