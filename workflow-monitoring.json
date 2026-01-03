@@ -1,0 +1,167 @@
+{
+  "nodes": [
+    {
+      "parameters": {},
+      "name": "Cron Trigger (every 5min)",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -656,
+        -80
+      ],
+      "cronExpression": "*/5 * * * *",
+      "id": "65a1eb89-43db-4319-984d-84727607d887"
+    },
+    {
+      "parameters": {
+        "url": "http://netdata:19999/api/v1/data?chart=system.cpu&format=json&points=1&after=-60",
+        "options": {}
+      },
+      "name": "Get Netdata CPU",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        -192
+      ],
+      "id": "17c6bde7-da54-4327-abe6-73eef2050571"
+    },
+    {
+      "parameters": {
+        "url": "http://netdata:19999/api/v1/data?chart=system.load&after=-60&points=1&format=json",
+        "options": {}
+      },
+      "name": "Get Node Exporter Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 2,
+      "position": [
+        -432,
+        16
+      ],
+      "id": "ef881f3c-25ac-4848-b91e-50a1ab0fb929"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Code ultra-robuste – force une alerte pour test\nlet cpu = 0;\nlet load = 0;\n\n// Récupération sécurisée des données CPU (premier item)\nif (items[0] && items[0].json && items[0].json.data && items[0].json.data.length > 0) {\n  const cpuArray = items[0].json.data[0];\n  if (Array.isArray(cpuArray) && cpuArray.length > 1) {\n    cpu = parseFloat(cpuArray[1]) || 0;\n  }\n}\n\n// Récupération sécurisée des données Load (deuxième item)\nif (items[1] && items[1].json && items[1].json.data && items[1].json.data.length > 0) {\n  const loadArray = items[1].json.data[0];\n  if (Array.isArray(loadArray) && loadArray.length > 1) {\n    load = parseFloat(loadArray[1]) || 0;\n  }\n}\n\n// Arrondi\ncpu = Number(cpu.toFixed(2));\nload = Number(load.toFixed(2));\n\n// === FORCER L'ALERTE POUR TEST ===\nconst alert = true;  // ← Ici on force true pour déclencher l'alerte à coup sûr\n\n// Message d'alerte (personnalisable)\nconst message = `🚨 TEST ALERTE FORCÉE 🚨\n💻 CPU réel : ${cpu}%\n📈 Load réel : ${load}\n🕐 ${new Date().toLocaleString()}\nHost : Local Monitoring (Docker)\nCe message est envoyé pour vérifier que Telegram fonctionne correctement !`;\n\nreturn [{\n  json: {\n    alert,                   // true → passe dans la branche alerte\n    cpu_usage: `${cpu}%`,\n    system_load: load,\n    message,\n    timestamp: new Date().toLocaleString(),\n    test_mode: true\n  }\n}];"
+      },
+      "name": "Analyze & Threshold Check",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        -80
+      ],
+      "id": "d0ba48c2-1aad-4d9e-bc1e-5f5e75af9fa1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{$json.alert}}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Alert?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -80
+      ],
+      "id": "9d4480ba-73f3-4525-8fe8-fcf4ec0593b6"
+    },
+    {
+      "parameters": {
+        "chatId": "6301352861",
+        "text": "=*🚨 ALERTE SYSTÈME*{{$json.alert ? \" ⚡ CHARGE ÉLEVÉE\" : \"\"}}\n\n💻 CPU : {{$json.cpu}}%\n📈 Load : {{$json.load}}\n🕐 {{$json.timestamp}}\n\nHost : Local Monitoring (Docker)",
+        "additionalFields": {}
+      },
+      "name": "Telegram Alert",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "position": [
+        304,
+        -96
+      ],
+      "id": "e872f59f-b771-4ded-9d5a-cc970e847ca1",
+      "webhookId": "79814833-5630-460f-bea2-7d5c73ca7ab8",
+      "credentials": {
+        "telegramApi": {
+          "id": "MCdFwAUHHmvJUdPK",
+          "name": "Telegram Alert Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Cron Trigger (every 5min)": {
+      "main": [
+        [
+          {
+            "node": "Get Netdata CPU",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Node Exporter Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Netdata CPU": {
+      "main": [
+        [
+          {
+            "node": "Analyze & Threshold Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Node Exporter Metrics": {
+      "main": [
+        [
+          {
+            "node": "Analyze & Threshold Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze & Threshold Check": {
+      "main": [
+        [
+          {
+            "node": "Alert?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert?": {
+      "main": [
+        [
+          {
+            "node": "Telegram Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "eb5348e23e5fe38f19ca6d669c35a8d82b52fdb90f73438442c221dab81ca57f"
+  }
+}
