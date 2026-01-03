@@ -1,0 +1,54 @@
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=admin
+      - N8N_BASIC_AUTH_PASSWORD=tuniflows2026
+    volumes:
+      - n8n_data:/home/node/.n8n
+    restart: always
+    depends_on:
+      - mariadb
+
+  netdata:
+    image: netdata/netdata:latest
+    ports:
+      - "19999:19999"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - apparmor:unconfined
+    restart: always
+
+  node-exporter:
+    image: prom/node-exporter:latest
+    ports:
+      - "9100:9100"
+    restart: always
+
+  mariadb:
+    image: mariadb:10.11
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass2026
+      MYSQL_DATABASE: monitoring
+      MYSQL_USER: alertuser
+      MYSQL_PASSWORD: alertpass2026
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    ports:
+      - "3306:3306"  # Optionnel : accès depuis ton PC si besoin
+
+volumes:
+  n8n_data:
+  mariadb_data:
